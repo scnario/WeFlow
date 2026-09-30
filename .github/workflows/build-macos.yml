@@ -2,6 +2,11 @@ name: Build macOS DMG
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/build-macos.yml"
 
 permissions:
   contents: read
@@ -25,7 +30,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm install --ignore-scripts --legacy-peer-deps
+        run: npm ci --ignore-scripts --force
 
       - name: TypeScript check
         run: npx tsc
