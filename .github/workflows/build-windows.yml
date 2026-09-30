@@ -1,0 +1,75 @@
+name: Build Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/build-windows.yml"
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  build-windows:
+    name: Windows ${{ matrix.arch }}
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - x64
+          - arm64
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --force
+
+      - name: TypeScript check
+        run: npx tsc
+
+      - name: Build frontend
+        run: npx vite build
+
+      - name: Package Windows
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ matrix.arch }}" = "x64" ]; then
+            npx electron-builder \
+              --win nsis \
+              --x64 \
+              --publish never \
+              '--config.artifactName=${productName}-${version}-x64-Setup.${ext}'
+          else
+            npx electron-builder \
+              --win nsis \
+              --arm64 \
+              --publish never \
+              '--config.publish.channel=latest-arm64' \
+              '--config.artifactName=${productName}-${version}-arm64-Setup.${ext}'
+          fi
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: WeFlow-Windows-${{ matrix.arch }}
+          path: |
+            release/*.exe
+            release/*.blockmap
+            release/latest*.yml
+          if-no-files-found: error
+          retention-days: 14
